@@ -1,0 +1,309 @@
+version: 2
+sources:
+- name: ehr
+  schema: ehr
+  tables:
+  - name: addresses
+    description: Postal addresses for patients, clinics, and providers.
+    columns:
+    - name: id
+      data_type: BIGINT
+    - name: line1
+      data_type: VARCHAR(200)
+      description: Street address line 1.
+    - name: line2
+      data_type: VARCHAR(200)
+    - name: city
+      data_type: VARCHAR(120)
+    - name: state_code
+      data_type: VARCHAR(2)
+      description: Two-letter US state or territory code.
+    - name: zip_code
+      data_type: VARCHAR(10)
+      description: US ZIP / postal code, 5 or 9 digits with optional dash.
+    - name: country_code
+      data_type: VARCHAR(2)
+    - name: created_at
+      data_type: TIMESTAMP WITH TIME ZONE
+  - name: appointment_events
+    description: 'Sub-events within an appointment: triage, vitals, assessment, discharge.'
+    columns:
+    - name: event_id
+      data_type: BIGINT
+    - name: appt_id
+      data_type: BIGINT
+    - name: event_kind
+      data_type: VARCHAR(40)
+      description: Stage label — controlled vocabulary kept in app code, not in this
+        DB.
+    - name: event_at
+      data_type: TIMESTAMP WITH TIME ZONE
+    - name: duration_min
+      data_type: INTEGER
+    - name: note
+      data_type: TEXT
+  - name: appointments
+    description: Scheduled and completed patient encounters with a provider.
+    columns:
+    - name: appt_id
+      data_type: BIGINT
+    - name: pat_id
+      data_type: BIGINT
+    - name: physician_id
+      data_type: BIGINT
+    - name: clinic_id
+      data_type: BIGINT
+    - name: scheduled_at
+      data_type: TIMESTAMP WITH TIME ZONE
+    - name: started_at
+      data_type: TIMESTAMP WITH TIME ZONE
+    - name: ended_at
+      data_type: TIMESTAMP WITH TIME ZONE
+    - name: visit_kind
+      data_type: VARCHAR(40)
+      description: 'Visit category — one of: in_person, telehealth, ed, inpatient,
+        lab_only.'
+    - name: status
+      data_type: VARCHAR(40)
+      description: 'Lifecycle: scheduled, checked_in, in_progress, completed, cancelled,
+        no_show.'
+    - name: chief_complaint
+      data_type: TEXT
+      description: Free-text patient-reported reason for visit at scheduling.
+    - name: created_at
+      data_type: TIMESTAMP WITH TIME ZONE
+  - name: clinics
+    description: Care delivery sites — clinic, hospital outpatient, urgent-care.
+    columns:
+    - name: clinic_id
+      data_type: BIGINT
+    - name: name
+      data_type: VARCHAR(200)
+    - name: address_id
+      data_type: BIGINT
+    - name: phone
+      data_type: VARCHAR(40)
+    - name: timezone
+      data_type: VARCHAR(40)
+      description: IANA timezone for the clinic's local-time displays.
+    - name: active
+      data_type: BOOLEAN
+  - name: diagnoses
+    description: Clinical diagnoses recorded against an encounter.
+    columns:
+    - name: dx_id
+      data_type: BIGINT
+    - name: appt_id
+      data_type: BIGINT
+    - name: pat_id
+      data_type: BIGINT
+    - name: icd10_code
+      data_type: VARCHAR(10)
+      description: ICD-10-CM diagnosis code. May include the dot (e.g. 'E11.9') or
+        be packed without it — clean both forms in dbt.
+    - name: diagnosed_at
+      data_type: DATE
+    - name: is_primary
+      data_type: BOOLEAN
+      description: True for the encounter's principal diagnosis, used for billing.
+    - name: free_text_notes
+      data_type: TEXT
+    - name: physician_id
+      data_type: BIGINT
+  - name: insurance_policies
+    description: Patient insurance enrolment. Multiple per patient; effective windows
+      can overlap.
+    columns:
+    - name: policy_id
+      data_type: BIGINT
+    - name: pat_id
+      data_type: BIGINT
+    - name: payer_name
+      data_type: VARCHAR(200)
+    - name: member_id
+      data_type: VARCHAR(80)
+    - name: group_number
+      data_type: VARCHAR(80)
+    - name: plan_type
+      data_type: VARCHAR(40)
+    - name: effective_from
+      data_type: DATE
+    - name: effective_to
+      data_type: DATE
+    - name: is_primary
+      data_type: BOOLEAN
+      description: True for the policy billing claims should default to.
+  - name: lab_results
+    description: Quantitative and qualitative lab observations. One row per LOINC
+      value.
+    columns:
+    - name: lab_id
+      data_type: BIGINT
+    - name: appt_id
+      data_type: BIGINT
+    - name: pat_id
+      data_type: BIGINT
+    - name: loinc_code
+      data_type: VARCHAR(20)
+      description: LOINC code identifying the test. ~95% populated; missing for legacy
+        in-house tests.
+    - name: test_name
+      data_type: VARCHAR(200)
+    - name: value_numeric
+      data_type: NUMERIC(15, 4)
+    - name: value_text
+      data_type: VARCHAR(200)
+      description: Used for qualitative results (positive/negative, growth/no growth).
+        Numeric values populate value_numeric.
+    - name: unit
+      data_type: VARCHAR(40)
+    - name: reference_low
+      data_type: NUMERIC(15, 4)
+    - name: reference_high
+      data_type: NUMERIC(15, 4)
+    - name: abnormal_flag
+      data_type: VARCHAR(4)
+      description: 'HL7-style flag: H, L, HH, LL, A — null when within reference range.'
+    - name: collected_at
+      data_type: TIMESTAMP WITH TIME ZONE
+    - name: resulted_at
+      data_type: TIMESTAMP WITH TIME ZONE
+  - name: patients
+    description: Patient demographic record. One row per person, MRN-keyed.
+    columns:
+    - name: pat_id
+      data_type: BIGINT
+      description: Surrogate key. Internal-only — never shared outside this DB.
+    - name: mrn
+      data_type: VARCHAR(20)
+      description: Medical Record Number — the operational key the staff uses.
+    - name: first_name
+      data_type: VARCHAR(80)
+    - name: last_name
+      data_type: VARCHAR(80)
+    - name: dob
+      data_type: DATE
+      description: Date of birth. UTC; never null per intake policy.
+    - name: sex
+      data_type: VARCHAR(1)
+      description: 'Sex assigned at birth: M, F, or U (unknown). Distinct from gender
+        identity (separate field, future).'
+    - name: primary_address
+      data_type: BIGINT
+    - name: primary_phone
+      data_type: VARCHAR(40)
+    - name: primary_email
+      data_type: VARCHAR(200)
+    - name: deceased
+      data_type: BOOLEAN
+    - name: deceased_date
+      data_type: DATE
+    - name: created_at
+      data_type: TIMESTAMP WITH TIME ZONE
+    - name: updated_at
+      data_type: TIMESTAMP WITH TIME ZONE
+  - name: physicians
+    description: Treating physicians and other licensed providers.
+    columns:
+    - name: physician_id
+      data_type: BIGINT
+    - name: npi
+      data_type: VARCHAR(10)
+      description: National Provider Identifier (10-digit, CMS-issued).
+    - name: first_name
+      data_type: VARCHAR(80)
+    - name: last_name
+      data_type: VARCHAR(80)
+    - name: specialty
+      data_type: VARCHAR(80)
+      description: Free-text specialty (cardiology, family medicine, etc.). Not a
+        controlled vocabulary.
+    - name: primary_clinic
+      data_type: BIGINT
+    - name: active
+      data_type: BOOLEAN
+    - name: created_at
+      data_type: TIMESTAMP WITH TIME ZONE
+  - name: prescriptions
+    description: Medication orders — written prescriptions, both new and refills.
+    columns:
+    - name: rx_id
+      data_type: BIGINT
+    - name: pat_id
+      data_type: BIGINT
+    - name: physician_id
+      data_type: BIGINT
+    - name: appt_id
+      data_type: BIGINT
+    - name: drug_name
+      data_type: VARCHAR(200)
+    - name: rxnorm_code
+      data_type: VARCHAR(20)
+      description: RxNorm RXCUI when known — populated for ~70% of orders.
+    - name: dose_amount
+      data_type: NUMERIC(10, 3)
+    - name: dose_unit
+      data_type: VARCHAR(20)
+    - name: frequency
+      data_type: VARCHAR(80)
+    - name: days_supply
+      data_type: INTEGER
+    - name: started_at
+      data_type: DATE
+    - name: ended_at
+      data_type: DATE
+    - name: is_chronic
+      data_type: BOOLEAN
+      description: Hand-curated flag for long-term meds (HTN, T2DM, lipid). Heuristic;
+        refine in dbt.
+    - name: notes
+      data_type: TEXT
+  - name: procedures_log
+    description: Procedures performed during encounters — billable and non-billable.
+    columns:
+    - name: proc_id
+      data_type: BIGINT
+    - name: appt_id
+      data_type: BIGINT
+    - name: pat_id
+      data_type: BIGINT
+    - name: cpt_code
+      data_type: VARCHAR(10)
+      description: CPT-4 procedure code. Modifier suffixes packed into the same column
+        when present.
+    - name: performed_at
+      data_type: TIMESTAMP WITH TIME ZONE
+    - name: physician_id
+      data_type: BIGINT
+    - name: body_site
+      data_type: VARCHAR(120)
+    - name: notes
+      data_type: TEXT
+  - name: vital_signs
+    description: Bedside / in-clinic vital signs. One row per measurement event; columns
+      nullable per measured panel.
+    columns:
+    - name: vital_id
+      data_type: BIGINT
+    - name: pat_id
+      data_type: BIGINT
+    - name: appt_id
+      data_type: BIGINT
+    - name: measured_at
+      data_type: TIMESTAMP WITH TIME ZONE
+    - name: height_cm
+      data_type: NUMERIC(6, 2)
+    - name: weight_kg
+      data_type: NUMERIC(6, 2)
+    - name: bp_systolic
+      data_type: INTEGER
+    - name: bp_diastolic
+      data_type: INTEGER
+    - name: heart_rate
+      data_type: INTEGER
+    - name: resp_rate
+      data_type: INTEGER
+    - name: temperature_c
+      data_type: NUMERIC(4, 1)
+    - name: spo2_pct
+      data_type: INTEGER
