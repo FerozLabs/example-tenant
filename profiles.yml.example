@@ -1,0 +1,12 @@
+example_tenant:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      user: example
+      password: example
+      port: 5432
+      dbname: example_tenant
+      schema: analytics
+      threads: 4
