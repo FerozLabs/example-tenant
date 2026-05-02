@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: person
+    description: Canonical demographic record. One row per individual from the source EHR patients table.
+    columns:
+      - name: person_id
+        description: Surrogate key derived from the source pat_id.
+        tests:
+          - unique
+          - not_null
+      - name: gender_concept_id
+        description: Sex-at-birth encoded as a concept ID (8507=MALE, 8532=FEMALE, 0=UNKNOWN).
+      - name: year_of_birth
+        description: Four-digit year extracted from the source date-of-birth.
+      - name: race_concept_id
+        description: Race concept ID; defaults to 0 (UNKNOWN) as the source has no race column.
+      - name: ethnicity_concept_id
+        description: Ethnicity concept ID; defaults to 0 (UNKNOWN) as the source has no ethnicity column.
